@@ -35,30 +35,21 @@ exports.create = (req, res) => {
 }
 
 exports.readAll = (req, res) => {
-  const { q } = req.query
+  let { q = '', limit = '10', page = '1' } = req.query
+  limit = parseInt(limit)
+  page = parseInt(page)
+  let offset = limit * page - limit
 
-  if (q) {
-    db.query(
-      'SELECT * FROM posts WHERE title LIKE ?',
-      [`%${q}%`],
-      (err, result) => {
-        if (err) {
-          res.status(500).send({ message: err.message })
-          return
-        }
-
-        res.send(result)
+  db.query(
+    'SELECT * FROM posts WHERE title LIKE ? ORDER BY created_at LIMIT ? OFFSET ?',
+    [`%${q}%`, limit, offset],
+    (err, result) => {
+      if (err) {
+        res.status(500).send({ message: err.message })
+        return
       }
-    )
-    return
-  }
 
-  db.query('SELECT * FROM posts', (err, result) => {
-    if (err) {
-      res.status(500).send({ message: err.message })
-      return
+      res.send(result)
     }
-
-    res.send(result)
-  })
+  )
 }
