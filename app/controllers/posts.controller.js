@@ -33,3 +33,14 @@ exports.create = (req, res) => {
     }
   })
 }
+
+exports.readAll = (req, res) => {
+  db.query('SELECT * FROM posts', (err, result) => {
+    if (err) {
+      res.status(500).send({ message: err.message })
+      return
+    }
+
+    res.send(result)
+  })
+}

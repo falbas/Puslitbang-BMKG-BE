@@ -5,6 +5,7 @@ const { upload } = require('../middlewares/upload.middleware')
 
 module.exports = (app) => {
   r.post('/', auth, upload.single('image'), posts.create)
+  r.get('/', posts.readAll)
 
   app.use('/api/posts', r)
 }
