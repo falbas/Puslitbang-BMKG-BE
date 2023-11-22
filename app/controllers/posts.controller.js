@@ -53,3 +53,16 @@ exports.readAll = (req, res) => {
     }
   )
 }
+
+exports.readBySlug = (req, res) => {
+  const { slug } = req.params
+
+  db.query('SELECT * FROM posts WHERE slug = ?', [slug], (err, result) => {
+    if (err) {
+      res.status(500).send({ message: err.message })
+      return
+    }
+
+    res.send(result)
+  })
+}
