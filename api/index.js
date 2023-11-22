@@ -1,6 +1,7 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const bearerToken = require('express-bearer-token')
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -11,6 +12,7 @@ const corsOption = {
 
 app.use(cors(corsOption))
 app.use(express.json())
+app.use(bearerToken())
 
 app.get('/api', (req, res) => {
   res.send('Hello World!')

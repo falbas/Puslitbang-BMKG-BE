@@ -90,3 +90,14 @@ exports.login = (req, res) => {
     }
   )
 }
+
+exports.verify = (req, res) => {
+  try {
+    res.send({
+      message: 'authorized',
+      ...req.auth,
+    })
+  } catch (err) {
+    res.status(500).send({ message: err.message })
+  }
+}
