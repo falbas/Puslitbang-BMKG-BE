@@ -1,4 +1,5 @@
 const db = require('../configs/db.config')
+crypto = require('node:crypto');
 
 exports.register = (req, res) => {
   const { email, password, name } = req.body
@@ -22,9 +23,14 @@ exports.register = (req, res) => {
         res.status(400).send({ message: 'email has already taken' })
         return
       } else {
+        const encpass = crypto
+          .createHmac("sha256", process.env.KEY_PASS)
+          .update(password)
+          .digest("hex");
+
         db.query(
           'INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)',
-          [email, password, name, role],
+          [email, encpass, name, role],
           (err) => {
             if (err) {
               res.status(500).send({ message: err.message })
