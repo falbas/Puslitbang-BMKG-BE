@@ -14,11 +14,14 @@ app.use(cors(corsOption))
 app.use(express.json())
 app.use(bearerToken())
 
+app.use('/api/storage', express.static('storage'));
+
 app.get('/api', (req, res) => {
   res.send('Hello World!')
 })
 
 require('../app/routes/users.route')(app)
+require('../app/routes/posts.route')(app)
 
 app.listen(port, () => {
   console.log(`listening on port ${port}`)
