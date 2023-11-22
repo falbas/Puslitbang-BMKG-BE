@@ -35,6 +35,24 @@ exports.create = (req, res) => {
 }
 
 exports.readAll = (req, res) => {
+  const { q } = req.query
+
+  if (q) {
+    db.query(
+      'SELECT * FROM posts WHERE title LIKE ?',
+      [`%${q}%`],
+      (err, result) => {
+        if (err) {
+          res.status(500).send({ message: err.message })
+          return
+        }
+
+        res.send(result)
+      }
+    )
+    return
+  }
+
   db.query('SELECT * FROM posts', (err, result) => {
     if (err) {
       res.status(500).send({ message: err.message })
