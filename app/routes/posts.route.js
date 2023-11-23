@@ -8,6 +8,7 @@ module.exports = (app) => {
   r.get('/', posts.readAll)
   r.get('/:slug', posts.readBySlug)
   r.put('/:id', auth, upload.single('image'), posts.update)
+  r.delete('/:id', auth, posts.delete)
 
   app.use('/api/posts', r)
 }

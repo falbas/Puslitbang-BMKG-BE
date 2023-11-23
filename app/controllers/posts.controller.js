@@ -111,3 +111,23 @@ exports.update = (req, res) => {
     })
   })
 }
+
+exports.delete = (req, res) => {
+  const { id } = req.params
+
+  db.query('DELETE FROM posts WHERE id = ?', [id], (err, result) => {
+    if (err) {
+      res.status(500).send({ message: err.message })
+      return
+    }
+
+    if (result.length === 0) {
+      res.status(404).send({ message: 'post not found' })
+      return
+    }
+
+    res.send({
+      message: 'post deleted',
+    })
+  })
+}
