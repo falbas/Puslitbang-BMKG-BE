@@ -66,3 +66,44 @@ exports.readBySlug = (req, res) => {
     res.send(result)
   })
 }
+
+exports.update = (req, res) => {
+  const { id } = req.params
+  let { title, text, slug } = req.body
+  let image = undefined
+  if (req.file) {
+    image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
+  }
+
+  db.query('SELECT * FROM posts WHERE id = ?', [id], (err, result) => {
+    if (err) {
+      res.status(500).send({ message: err.message })
+      return
+    }
+
+    if (result.length === 0) {
+      res.status(404).send({ message: 'post not found' })
+      return
+    }
+
+    title = title ? title : result[0].title
+    text = text ? text : result[0].text
+    image = image ? image : result[0].image
+    slug = slug ? slug : result[0].slug
+
+    db.query(
+      'UPDATE posts SET title=?, text=?, image=?, slug=? WHERE id=?',
+      [title, text, image, slug, id],
+      (err) => {
+        if (err) {
+          res.status(500).send({ message: err.message })
+          return
+        }
+
+        res.send({
+          message: 'post updated',
+        })
+      }
+    )
+  })
+}
