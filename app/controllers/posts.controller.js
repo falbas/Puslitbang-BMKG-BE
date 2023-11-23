@@ -1,12 +1,13 @@
 const db = require('../configs/db.config')
 
 exports.create = (req, res) => {
-  const { title, text } = req.body
+  const { title, text, tags } = req.body
   const image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
   const author = req.auth.email
   const slug =
     req.body.slug || title.toLowerCase().replace(/[^a-zA-Z0-9-]/g, '-')
 
+  // check slug
   db.query('SELECT * FROM posts WHERE slug = ?', [slug], (err, result) => {
     if (err) {
       res.status(500).send({ message: err.message })
@@ -15,22 +16,43 @@ exports.create = (req, res) => {
 
     if (result.length > 0) {
       res.status(400).send({ message: 'slug is already taken' })
-    } else {
-      db.query(
-        'INSERT INTO posts (title, text, image, author, slug) VALUES (?, ?, ?, ?, ?)',
-        [title, text, image, author, slug],
-        (err) => {
-          if (err) {
-            res.status(500).send({ message: err.message })
-            return
-          }
-
-          res.status(201).send({
-            message: 'create post successful',
-          })
-        }
-      )
+      return
     }
+
+    // insert post
+    db.query(
+      'INSERT INTO posts (title, text, image, author, slug) VALUES (?, ?, ?, ?, ?)',
+      [title, text, image, author, slug],
+      (err, result) => {
+        if (err) {
+          res.status(500).send({ message: err.message })
+          return
+        }
+
+        tags.split(',').map((tag) => {
+          // check tag
+          db.query(
+            'SELECT * FROM tags WHERE name = ?',
+            [tag],
+            (err, result) => {
+              // insert tag if not in database
+              if (result.length === 0) {
+                db.query('INSERT INTO tags (name) VALUES (?)', [tag])
+              }
+            }
+          )
+          // insert post tag relation
+          db.query('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)', [
+            result.insertId,
+            tag,
+          ])
+        })
+
+        res.status(201).send({
+          message: 'create post successful',
+        })
+      }
+    )
   })
 }
 
