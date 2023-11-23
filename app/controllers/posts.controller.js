@@ -76,11 +76,6 @@ exports.update = (req, res) => {
   }
 
   db.query('SELECT * FROM posts WHERE id = ?', [id], (err, result) => {
-    if (err) {
-      res.status(500).send({ message: err.message })
-      return
-    }
-
     if (result.length === 0) {
       res.status(404).send({ message: 'post not found' })
       return
@@ -91,19 +86,28 @@ exports.update = (req, res) => {
     image = image ? image : result[0].image
     slug = slug ? slug : result[0].slug
 
-    db.query(
-      'UPDATE posts SET title=?, text=?, image=?, slug=? WHERE id=?',
-      [title, text, image, slug, id],
-      (err) => {
-        if (err) {
-          res.status(500).send({ message: err.message })
+    db.query('SELECT * FROM posts WHERE slug = ?', [slug], (err, result) => {
+      if (result.length > 0) {
+        if (parseInt(result[0].id) !== parseInt(id)) {
+          res.status(400).send({ message: 'slug is already use' })
           return
         }
-
-        res.send({
-          message: 'post updated',
-        })
       }
-    )
+
+      db.query(
+        'UPDATE posts SET title=?, text=?, image=?, slug=? WHERE id=?',
+        [title, text, image, slug, id],
+        (err) => {
+          if (err) {
+            res.status(500).send({ message: err.message })
+            return
+          }
+
+          res.send({
+            message: 'post updated',
+          })
+        }
+      )
+    })
   })
 }
