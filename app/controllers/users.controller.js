@@ -1,5 +1,5 @@
 const db = require('../configs/db.config')
-crypto = require('node:crypto')
+const { createHmac } = require('node:crypto')
 const jwt = require('jsonwebtoken')
 
 exports.register = (req, res) => {
@@ -24,8 +24,7 @@ exports.register = (req, res) => {
         res.status(400).send({ message: 'email has already taken' })
         return
       } else {
-        const encpass = crypto
-          .createHmac('sha256', process.env.KEY_PASS)
+        const encpass = createHmac('sha256', process.env.KEY_PASS)
           .update(password)
           .digest('hex')
 
@@ -56,8 +55,7 @@ exports.login = (req, res) => {
     return
   }
 
-  const encpass = crypto
-    .createHmac('sha256', process.env.KEY_PASS)
+  const encpass = createHmac('sha256', process.env.KEY_PASS)
     .update(password)
     .digest('hex')
 
