@@ -29,24 +29,26 @@ exports.create = (req, res) => {
           return
         }
 
-        tags.split(',').map((tag) => {
-          // check tag
-          db.query(
-            'SELECT * FROM tags WHERE name = ?',
-            [tag],
-            (err, result) => {
-              // insert tag if not in database
-              if (result.length === 0) {
-                db.query('INSERT INTO tags (name) VALUES (?)', [tag])
+        if (tags) {
+          tags.split(',').map((tag) => {
+            // check tag
+            db.query(
+              'SELECT * FROM tags WHERE name = ?',
+              [tag],
+              (err, result) => {
+                // insert tag if not in database
+                if (result.length === 0) {
+                  db.query('INSERT INTO tags (name) VALUES (?)', [tag])
+                }
               }
-            }
-          )
-          // insert post tag relation
-          db.query('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)', [
-            result.insertId,
-            tag,
-          ])
-        })
+            )
+            // insert post tag relation
+            db.query('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)', [
+              result.insertId,
+              tag,
+            ])
+          })
+        }
 
         res.status(201).send({
           message: 'create post successful',
