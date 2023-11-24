@@ -59,10 +59,32 @@ exports.create = (req, res) => {
 }
 
 exports.readAll = (req, res) => {
-  let { q = '', limit = '10', page = '1' } = req.query
+  let { q = '', limit = '10', page = '1', tags } = req.query
   limit = parseInt(limit)
   page = parseInt(page)
   let offset = limit * page - limit
+
+  if (tags) {
+    let sql =
+      'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts JOIN post_tags ON posts.id = post_tags.post_id WHERE'
+    const tagValue = []
+    tags.split(',').map((tag) => {
+      if (tagValue.length > 0) sql += ' OR'
+      sql += ' post_tags.tag = ?'
+      tagValue.push(tag)
+    })
+    sql += ' GROUP BY posts.id ORDER BY created_at LIMIT ? OFFSET ?'
+
+    db.query(sql, [...tagValue, limit, offset], (err, result) => {
+      if (err) {
+        res.status(500).send({ message: err.message })
+        return
+      }
+
+      res.send(result)
+    })
+    return
+  }
 
   db.query(
     'SELECT * FROM posts WHERE title LIKE ? ORDER BY created_at LIMIT ? OFFSET ?',
