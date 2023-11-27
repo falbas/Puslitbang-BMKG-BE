@@ -115,7 +115,7 @@ exports.readBySlug = (req, res) => {
 
 exports.update = (req, res) => {
   const { id } = req.params
-  let { title, text, slug } = req.body
+  let { title, text, slug, tags } = req.body
   let image = undefined
   if (req.file) {
     image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
@@ -147,6 +147,17 @@ exports.update = (req, res) => {
           if (err) {
             res.status(500).send({ message: err.message })
             return
+          }
+
+          if (tags) {
+            db.query('DELETE FROM post_tags WHERE post_id = ?', [id])
+            tags.split(',').map((tag) => {
+              db.query('INSERT INTO tags (name) VALUES (?)', [tag])
+              db.query('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)', [
+                id,
+                tag,
+              ])
+            })
           }
 
           res.send({
