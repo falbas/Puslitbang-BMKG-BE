@@ -68,6 +68,11 @@ exports.readAll = (req, res) => {
           return
         }
 
+        if (result.length === 0) {
+          res.status(404).send({ message: 'post not found' })
+          return
+        }
+
         res.send(result[0])
       }
     )
