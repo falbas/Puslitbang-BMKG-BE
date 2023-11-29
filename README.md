@@ -49,7 +49,7 @@
     "message": "all input is required"
 }
 {
-    "message": "email has already taken"
+    "message": "email is already taken"
 }
 ```
 
@@ -86,6 +86,14 @@
 ```
 {
     "message": "all input is required"
+}
+```
+
+- 401 Unauthorized
+
+```
+{
+    "message": "email or password is wrong"
 }
 ```
 

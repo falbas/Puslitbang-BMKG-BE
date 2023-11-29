@@ -21,7 +21,7 @@ exports.register = (req, res) => {
       }
 
       if (result.length > 0) {
-        res.status(400).send({ message: 'email has already taken' })
+        res.status(400).send({ message: 'email is already taken' })
         return
       } else {
         const encpass = createHmac('sha256', process.env.KEY_PASS)
@@ -69,7 +69,7 @@ exports.login = (req, res) => {
       }
 
       if (result.length === 0) {
-        res.status(404).send({ message: 'user does not exist' })
+        res.status(401).send({ message: 'email or password is wrong' })
         return
       }
 
