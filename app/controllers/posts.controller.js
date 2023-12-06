@@ -79,42 +79,56 @@ exports.readAll = (req, res) => {
     return
   }
 
-  // read by tags
-  if (tags) {
-    let sql =
-      'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts JOIN post_tags ON posts.id = post_tags.post_id WHERE'
-    const tagValue = []
-    tags.split(',').map((tag) => {
-      if (tagValue.length > 0) sql += ' OR'
-      sql += ' post_tags.tag = ?'
-      tagValue.push(tag)
-    })
-    sql += ' GROUP BY posts.id ORDER BY created_at LIMIT ? OFFSET ?'
+  db.query('SELECT COUNT(id) AS total_posts FROM posts', (err, result) => {
+    // read by tags
+    if (tags) {
+      let sql =
+        'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts JOIN post_tags ON posts.id = post_tags.post_id WHERE'
+      const tagValue = []
+      tags.split(',').map((tag) => {
+        if (tagValue.length > 0) sql += ' OR'
+        sql += ' post_tags.tag = ?'
+        tagValue.push(tag)
+      })
+      sql += ' GROUP BY posts.id ORDER BY created_at LIMIT ? OFFSET ?'
 
-    db.query(sql, [...tagValue, limit, offset], (err, result) => {
-      if (err) {
-        res.status(500).send({ message: err.message })
-        return
-      }
+      db.query(sql, [...tagValue, limit, offset], (err, result2) => {
+        if (err) {
+          res.status(500).send({ message: err.message })
+          return
+        }
 
-      res.send(result)
-    })
-    return
-  }
-
-  // read by query
-  db.query(
-    'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE title LIKE ? GROUP BY post_tags.post_id ORDER BY created_at LIMIT ? OFFSET ?',
-    [`%${q}%`, limit, offset],
-    (err, result) => {
-      if (err) {
-        res.status(500).send({ message: err.message })
-        return
-      }
-
-      res.send(result)
+        res.send({
+          page: page,
+          limit: limit,
+          total_pages: Math.ceil(result[0].total_posts / limit),
+          total_posts: result[0].total_posts,
+          data: result2,
+        })
+      })
+      return
     }
-  )
+
+    // read by query
+    db.query(
+      'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE title LIKE ? GROUP BY post_tags.post_id ORDER BY created_at LIMIT ? OFFSET ?',
+      [`%${q}%`, limit, offset],
+      (err, result2) => {
+        if (err) {
+          res.status(500).send({ message: err.message })
+          return
+        }
+
+        res.send({
+          page: page,
+          limit: limit,
+          total_pages: Math.ceil(result[0].total_posts / limit),
+          total_posts: result[0].total_posts,
+          data: result2,
+        })
+      }
+    )
+  })
 }
 
 exports.readById = (req, res) => {

@@ -202,19 +202,25 @@
 - 200 OK
 
 ```
-[
-    {
-        "id": 1,
-        "title": "title",
-        "text": "text",
-        "image": "http://url/to/image.jpg",
-        "author": "tes@gmail.com",
-        "slug": "title",
-        "created_at": "2023-11-28T07:34:30.000Z",
-        "updated_at": "2023-11-28T07:34:30.000Z",
-        "tags": "tag1,tag2,tag3"
-    }
-]
+{
+    "page": 1,
+    "limit": 4,
+    "total_pages": 2,
+    "total_posts": 7,
+    "data": [
+        {
+            "id": 1,
+            "title": "title",
+            "text": "text",
+            "image": "http://url/to/image.jpg",
+            "author": "tes@gmail.com",
+            "slug": "title",
+            "created_at": "2023-11-28T07:34:30.000Z",
+            "updated_at": "2023-11-28T07:34:30.000Z",
+            "tags": "tag1,tag2,tag3"
+        }
+    ]
+}
 ```
 
 ## (GET) Get A Post By Slug
