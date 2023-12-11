@@ -1,4 +1,5 @@
 const db = require('../configs/db.config')
+const sqlPromise = require('../helpers/sqlPromise')
 
 exports.create = (req, res) => {
   const { title, text, tags } = req.body
@@ -51,84 +52,82 @@ exports.create = (req, res) => {
   )
 }
 
-exports.readAll = (req, res) => {
+exports.readAll = async (req, res) => {
   let { q = '', limit = '10', page = '1', tags, slug } = req.query
   limit = parseInt(limit)
   page = parseInt(page)
   let offset = limit * page - limit
 
-  // read by slug
-  if (slug) {
-    db.query(
-      'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE posts.slug = ? GROUP BY post_tags.post_id',
-      [slug],
-      (err, result) => {
-        if (err) {
-          res.status(500).send({ message: err.message })
-          return
-        }
+  try {
+    // read by slug
+    if (slug) {
+      const sql =
+        'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE posts.slug = ? GROUP BY post_tags.post_id'
+      const result = await sqlPromise(sql, [slug])
 
-        if (result.length === 0) {
-          res.status(404).send({ message: 'post not found' })
-          return
-        }
-
-        res.send(result[0])
+      if (result.length === 0) {
+        res.status(404).send({ message: 'post not found' })
+        return
       }
-    )
-    return
-  }
 
-  db.query('SELECT COUNT(id) AS total_posts FROM posts', (err, result) => {
-    // read by tags
-    if (tags) {
-      let sql =
-        'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts JOIN post_tags ON posts.id = post_tags.post_id WHERE'
-      const tagValue = []
-      tags.split(',').map((tag) => {
-        if (tagValue.length > 0) sql += ' OR'
-        sql += ' post_tags.tag = ?'
-        tagValue.push(tag)
-      })
-      sql += ' GROUP BY posts.id ORDER BY created_at LIMIT ? OFFSET ?'
+      res.send(result[0])
 
-      db.query(sql, [...tagValue, limit, offset], (err, result2) => {
-        if (err) {
-          res.status(500).send({ message: err.message })
-          return
-        }
-
-        res.send({
-          page: page,
-          limit: limit,
-          total_pages: Math.ceil(result[0].total_posts / limit),
-          total_posts: result[0].total_posts,
-          data: result2,
-        })
-      })
       return
     }
 
     // read by query
-    db.query(
-      'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE title LIKE ? GROUP BY post_tags.post_id ORDER BY created_at LIMIT ? OFFSET ?',
-      [`%${q}%`, limit, offset],
-      (err, result2) => {
-        if (err) {
-          res.status(500).send({ message: err.message })
-          return
-        }
+    let sql = ''
+    let sqlCount = ''
+    const values = []
 
-        res.send({
-          page: page,
-          limit: limit,
-          total_pages: Math.ceil(result[0].total_posts / limit),
-          total_posts: result[0].total_posts,
-          data: result2,
-        })
+    sqlCount = 'SELECT COUNT(*) AS total_posts FROM posts WHERE title LIKE ?'
+    sql =
+      'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE title LIKE ?'
+    values.push(`%${q}%`)
+
+    // search with tags
+    if (tags) {
+      sqlCount =
+        'SELECT COUNT(*) AS total_posts FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE title LIKE ?'
+
+      const tagValues = []
+      tags.split(',').map((tag) => {
+        tagValues.push(tag)
+      })
+
+      sqlCount += ' AND ('
+      for (let i = 0; i < tagValues.length; i++) {
+        if (i > 0) sqlCount += ' OR'
+        sqlCount += ' post_tags.tag = ?'
       }
-    )
-  })
+      sqlCount += ' )'
+
+      sql += ' AND ('
+      for (let i = 0; i < tagValues.length; i++) {
+        if (i > 0) sql += ' OR'
+        sql += ' post_tags.tag = ?'
+      }
+      sql += ' )'
+
+      values.push(...tagValues)
+    }
+
+    sql += ' GROUP BY posts.id ORDER BY created_at LIMIT ? OFFSET ?'
+    values.push(...[limit, offset])
+
+    const postsCount = await sqlPromise(sqlCount, values)
+    const postsRead = await sqlPromise(sql, values)
+
+    res.send({
+      page: page,
+      limit: limit,
+      total_pages: Math.ceil(postsCount[0].total_posts / limit),
+      total_posts: postsCount[0].total_posts,
+      data: postsRead,
+    })
+  } catch (err) {
+    res.status(500).send(err)
+  }
 }
 
 exports.readById = (req, res) => {
