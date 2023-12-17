@@ -1,6 +1,18 @@
 const db = require('../configs/db.config')
 const sqlPromise = require('../helpers/sqlPromise')
 
+const POSTS_ORDER_KEY = {
+  title: 'posts.title',
+  author: 'posts.author',
+  created_at: 'posts.created_at',
+  updated_at: 'posts.updated_at',
+}
+
+const POSTS_SORT_KEY = {
+  asc: 'ASC',
+  desc: 'DESC',
+}
+
 exports.create = (req, res) => {
   const { title, text, tags } = req.body
 
@@ -53,7 +65,16 @@ exports.create = (req, res) => {
 }
 
 exports.readAll = async (req, res) => {
-  let { q = '', limit = '10', page = '1', tags, slug } = req.query
+  let {
+    q = '',
+    limit = '10',
+    page = '1',
+    tags,
+    slug,
+    order = 'created_at',
+    sort = 'asc',
+    author = '',
+  } = req.query
   limit = parseInt(limit)
   page = parseInt(page)
   let offset = limit * page - limit
@@ -85,6 +106,12 @@ exports.readAll = async (req, res) => {
       'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE title LIKE ?'
     values.push(`%${q}%`)
 
+    if (author !== '') {
+      sqlCount += ' AND author = ?'
+      sql += ' AND author = ?'
+      values.push(author)
+    }
+
     // search with tags
     if (tags) {
       sqlCount =
@@ -112,7 +139,10 @@ exports.readAll = async (req, res) => {
       values.push(...tagValues)
     }
 
-    sql += ' GROUP BY posts.id ORDER BY created_at LIMIT ? OFFSET ?'
+    sql += ' GROUP BY posts.id'
+    sql += ' ORDER BY ' + (POSTS_ORDER_KEY[order] || 'posts.created_at')
+    sql += ' ' + (POSTS_SORT_KEY[sort] || 'ASC')
+    sql += ' LIMIT ? OFFSET ?'
     values.push(...[limit, offset])
 
     const postsCount = await sqlPromise(sqlCount, values)
@@ -126,7 +156,7 @@ exports.readAll = async (req, res) => {
       data: postsRead,
     })
   } catch (err) {
-    res.status(500).send(err)
+    res.status(500).send({ message: err.message })
   }
 }
 
