@@ -8,6 +8,7 @@ module.exports = (app) => {
   r.get('/verify', auth, users.verify)
   r.put('/', auth, users.update)
   r.delete('/:email', auth, users.delete)
+  r.get('/', auth, users.readAll)
 
   app.use('/api/users', r)
 }

@@ -1,6 +1,19 @@
 const db = require('../configs/db.config')
 const { createHmac } = require('node:crypto')
 const jwt = require('jsonwebtoken')
+const sqlPromise = require('../helpers/sqlPromise')
+
+const USERS_ORDER_KEY = {
+  email: 'users.email',
+  name: 'users.name',
+  created_at: 'users.created_at',
+  updated_at: 'users.updated_at',
+}
+
+const USERS_SORT_KEY = {
+  asc: 'ASC',
+  desc: 'DESC',
+}
 
 exports.register = (req, res) => {
   const { email, password, name } = req.body
@@ -99,6 +112,53 @@ exports.verify = (req, res) => {
     res.send({
       message: 'authorized',
       ...req.auth,
+    })
+  } catch (err) {
+    res.status(500).send({ message: err.message })
+  }
+}
+
+exports.readAll = async (req, res) => {
+  let {
+    q = '',
+    limit = '10',
+    page = '1',
+    order = 'created_at',
+    sort = 'asc',
+  } = req.query
+  limit = parseInt(limit)
+  page = parseInt(page)
+  let offset = limit * page - limit
+
+  if (req.auth.role !== 'superadmin') {
+    res.status(401).send({ message: 'permission denied' })
+    return
+  }
+
+  try {
+    // read by query
+    let sql = ''
+    let sqlCount = ''
+    const values = []
+
+    sqlCount = 'SELECT COUNT(email) AS total FROM users WHERE email LIKE ?'
+    sql = 'SELECT email, name, role, created_at, updated_at FROM users WHERE email LIKE ?'
+    values.push(`%${q}%`)
+
+    sql += ' ORDER BY ' + (USERS_ORDER_KEY[order] || 'users.created_at')
+    sql += ' ' + (USERS_SORT_KEY[sort] || 'ASC')
+    sql += ' LIMIT ? OFFSET ?'
+    values.push(...[limit, offset])
+
+    const usersCount = await sqlPromise(sqlCount, values)
+    const usersRead = await sqlPromise(sql, values)
+
+    res.send({
+      page: page,
+      limit: limit,
+      total_pages: Math.ceil(usersCount[0].total / limit),
+      total: usersCount[0].total,
+      data: usersRead,
     })
   } catch (err) {
     res.status(500).send({ message: err.message })

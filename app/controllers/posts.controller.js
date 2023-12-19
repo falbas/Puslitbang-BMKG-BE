@@ -106,12 +106,6 @@ exports.readAll = async (req, res) => {
       'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE title LIKE ?'
     values.push(`%${q}%`)
 
-    if (author !== '') {
-      sqlCount += ' AND author = ?'
-      sql += ' AND author = ?'
-      values.push(author)
-    }
-
     // search with tags
     if (tags) {
       sqlCount =
@@ -137,6 +131,12 @@ exports.readAll = async (req, res) => {
       sql += ' )'
 
       values.push(...tagValues)
+    }
+
+    if (author !== '') {
+      sqlCount += ' AND author = ?'
+      sql += ' AND author = ?'
+      values.push(author)
     }
 
     sql += ' GROUP BY posts.id'
