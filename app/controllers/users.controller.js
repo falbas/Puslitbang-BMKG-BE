@@ -142,7 +142,8 @@ exports.readAll = async (req, res) => {
     const values = []
 
     sqlCount = 'SELECT COUNT(email) AS total FROM users WHERE email LIKE ?'
-    sql = 'SELECT email, name, role, created_at, updated_at FROM users WHERE email LIKE ?'
+    sql =
+      'SELECT email, name, role, created_at, updated_at FROM users WHERE email LIKE ?'
     values.push(`%${q}%`)
 
     sql += ' ORDER BY ' + (USERS_ORDER_KEY[order] || 'users.created_at')
@@ -202,19 +203,23 @@ exports.delete = (req, res) => {
     return
   }
 
-  db.query('DELETE FROM users WHERE email = ?', [email], (err, result) => {
-    if (err) {
-      res.status(500).send({ message: err.message })
-      return
-    }
+  db.query(
+    'DELETE FROM users WHERE email = ? AND role = "admin"',
+    [email],
+    (err, result) => {
+      if (err) {
+        res.status(500).send({ message: err.message })
+        return
+      }
 
-    if (result.affectedRows === 0) {
-      res.status(404).send({ message: 'user not found' })
-      return
-    }
+      if (result.affectedRows === 0) {
+        res.status(404).send({ message: 'user not found' })
+        return
+      }
 
-    res.send({
-      message: 'user deleted',
-    })
-  })
+      res.send({
+        message: 'user deleted',
+      })
+    }
+  )
 }
