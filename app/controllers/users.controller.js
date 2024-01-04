@@ -223,3 +223,25 @@ exports.delete = (req, res) => {
     }
   )
 }
+
+exports.info = (req, res) => {
+  db.query(
+    'SELECT * FROM users WHERE email = ?',
+    [req.auth.email],
+    (err, result) => {
+      if (err) {
+        res.status(500).send({ message: err.message })
+        return
+      }
+
+      if (result.length === 0) {
+        res.status(404).send({ message: 'user not found' })
+        return
+      }
+
+      res.send({
+        data: result[0],
+      })
+    }
+  )
+}
