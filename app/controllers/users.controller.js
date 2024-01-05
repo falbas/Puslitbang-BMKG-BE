@@ -240,7 +240,10 @@ exports.info = (req, res) => {
       }
 
       res.send({
-        data: result[0],
+        data: {
+          ...result[0],
+          password: undefined,
+        },
       })
     }
   )
