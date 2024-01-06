@@ -197,7 +197,13 @@ exports.update = (req, res) => {
   if (slug) (sql += ' slug=?,'), updateValue.push(slug)
   if (image) (sql += ' image=?,'), updateValue.push(image)
   sql = sql.replace(/,(?=[^,]*$)/, '')
-  ;(sql += ' WHERE id=?'), updateValue.push(id)
+  sql += ' WHERE id=?'
+  updateValue.push(id)
+
+  if (req.auth.role !== 'superadmin') {
+    sql += ' AND author=?'
+    updateValue.push(req.auth.email)
+  }
 
   db.query(sql, updateValue, (err, result) => {
     if (err) {
@@ -239,7 +245,15 @@ exports.update = (req, res) => {
 exports.delete = (req, res) => {
   const { id } = req.params
 
-  db.query('DELETE FROM posts WHERE id = ?', [id], (err, result) => {
+  let sql = 'DELETE FROM posts WHERE id = ?'
+  const values = [id]
+
+  if (req.auth.role !== 'superadmin') {
+    sql += ' AND author=?'
+    updateValue.push(req.auth.email)
+  }
+
+  db.query(sql, values, (err, result) => {
     if (err) {
       res.status(500).send({ message: err.message })
       return
