@@ -7,7 +7,7 @@ module.exports = (app) => {
   r.post('/', auth, upload, posts.create)
   r.get('/', posts.readAll)
   r.get('/:id', posts.readById)
-  r.put('/:id', auth, upload, posts.update)
+  r.patch('/:id', auth, upload, posts.update)
   r.delete('/:id', auth, posts.delete)
 
   app.use('/api/posts', r)

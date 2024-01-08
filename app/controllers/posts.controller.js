@@ -13,73 +13,77 @@ const POSTS_SORT_KEY = {
   desc: 'DESC',
 }
 
-exports.create = (req, res) => {
-  const { title, text, tags } = req.body
+exports.create = async (req, res) => {
+  try {
+    const { title, text, tags } = req.body
 
-  if (!title || !text) {
-    res.status(400).send({ message: 'title and text is required' })
-    return
-  }
-
-  let image = undefined
-  if (req.file) {
-    image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
-  }
-  const author = req.auth.email
-  const slug =
-    req.body.slug || title.toLowerCase().replace(/[^a-zA-Z0-9-]/g, '-')
-
-  db.query(
-    'INSERT INTO posts (title, text, image, author, slug) VALUES (?, ?, ?, ?, ?)',
-    [title, text, image, author, slug],
-    (err, result) => {
-      if (err) {
-        if (err.message.includes("'slug'")) {
-          res.status(400).send({ message: 'slug is already taken' })
-          return
-        }
-
-        res.status(500).send({ message: err.message })
-        return
-      }
-
-      if (tags) {
-        tags.split(',').map((tag) => {
-          db.query(
-            'INSERT INTO tags (name) VALUES (?)',
-            [tag],
-            (err, result) => {}
-          )
-          db.query('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)', [
-            result.insertId,
-            tag,
-          ])
-        })
-      }
-
-      res.status(201).send({
-        message: 'create post successful',
-      })
+    if (!title || !text) {
+      res.status(400).send({ message: 'title and text is required' })
+      return
     }
-  )
+
+    let image = undefined
+    if (req.file) {
+      image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
+    }
+    const author = req.auth.email
+    const slug =
+      req.body.slug || title.toLowerCase().replace(/[^a-zA-Z0-9-]/g, '-')
+
+    const query = await sqlPromise(
+      'INSERT INTO posts (title, text, image, author, slug) VALUES (?, ?, ?, ?, ?)',
+      [title, text, image, author, slug]
+    )
+
+    if (tags) {
+      let sqlInsertTags = 'INSERT INTO tags (name) VALUES'
+      const sqlInsertTagsValues = []
+      let sqlInsertPostTags = 'INSERT INTO post_tags (post_id, tag) VALUES'
+      const sqlInsertpostTagsValues = []
+      tags.split(',').map((tag) => {
+        sqlInsertTags += ' (?),'
+        sqlInsertTagsValues.push(tag)
+        sqlInsertPostTags += ' (?, ?),'
+        sqlInsertpostTagsValues.push(...[query.insertId, tag])
+      })
+      sqlInsertTags = sqlInsertTags.slice(0, -1)
+      sqlInsertPostTags = sqlInsertPostTags.slice(0, -1)
+      // catch for ignore error duplicate tag name on table
+      await sqlPromise(sqlInsertTags, sqlInsertTagsValues).catch((err) => {})
+      await sqlPromise(sqlInsertPostTags, sqlInsertpostTagsValues)
+    }
+
+    res.status(201).send({
+      message: 'create post successful',
+    })
+  } catch (err) {
+    console.log(err)
+
+    if (err.code === 'ER_DUP_ENTRY') {
+      res.status(400).send({ message: 'slug is already taken' })
+      return
+    }
+
+    res.status(500).send({ message: err.message })
+  }
 }
 
 exports.readAll = async (req, res) => {
-  let {
-    q = '',
-    limit = '10',
-    page = '1',
-    tags,
-    slug,
-    order = 'created_at',
-    sort = 'asc',
-    author = '',
-  } = req.query
-  limit = parseInt(limit)
-  page = parseInt(page)
-  let offset = limit * page - limit
-
   try {
+    let {
+      q = '',
+      limit = '10',
+      page = '1',
+      tags,
+      slug,
+      order = 'created_at',
+      sort = 'asc',
+      author = '',
+    } = req.query
+    limit = parseInt(limit)
+    page = parseInt(page)
+    let offset = limit * page - limit
+
     // read by slug
     if (slug) {
       const sql =
@@ -156,118 +160,127 @@ exports.readAll = async (req, res) => {
       data: postsRead,
     })
   } catch (err) {
+    console.log(err)
+
     res.status(500).send({ message: err.message })
   }
 }
 
-exports.readById = (req, res) => {
-  const { id } = req.params
+exports.readById = async (req, res) => {
+  try {
+    const { id } = req.params
 
-  db.query(
-    'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE posts.id = ? GROUP BY post_tags.post_id',
-    [id],
-    (err, result) => {
-      if (err) {
-        res.status(500).send({ message: err.message })
-        return
-      }
+    const query = await sqlPromise(
+      'SELECT posts.*, GROUP_CONCAT(post_tags.tag) AS tags FROM posts LEFT JOIN post_tags ON posts.id = post_tags.post_id WHERE posts.id = ? GROUP BY post_tags.post_id',
+      [id]
+    )
 
-      if (result.length === 0) {
-        res.status(404).send({ message: 'post not found' })
-        return
-      }
-
-      res.send(result[0])
-    }
-  )
-}
-
-exports.update = (req, res) => {
-  const { id } = req.params
-  let { title, text, slug, tags } = req.body
-  let image = undefined
-  if (req.file) {
-    image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
-  }
-
-  let sql = 'UPDATE posts SET'
-  const updateValue = []
-  if (title) (sql += ' title=?,'), updateValue.push(title)
-  if (text) (sql += ' text=?,'), updateValue.push(text)
-  if (slug) (sql += ' slug=?,'), updateValue.push(slug)
-  if (image) (sql += ' image=?,'), updateValue.push(image)
-  sql = sql.replace(/,(?=[^,]*$)/, '')
-  sql += ' WHERE id=?'
-  updateValue.push(id)
-
-  if (req.auth.role !== 'superadmin') {
-    sql += ' AND author=?'
-    updateValue.push(req.auth.email)
-  }
-
-  db.query(sql, updateValue, (err, result) => {
-    if (err) {
-      if (err.message.includes("'slug'")) {
-        res.status(400).send({ message: 'slug is already taken' })
-        return
-      }
-
-      res.status(500).send({ message: err.message })
+    if (query.length === 0) {
+      res.status(404).send({ message: 'post not found' })
       return
     }
 
-    if (result.affectedRows === 0) {
+    res.send(query[0])
+  } catch (err) {
+    console.log(err)
+
+    res.status(500).send({ message: err.message })
+  }
+}
+
+exports.update = async (req, res) => {
+  try {
+    const { id } = req.params
+    let { title, text, slug, tags } = req.body
+    let image = undefined
+    if (req.file) {
+      image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
+    }
+
+    let sql = 'UPDATE posts SET'
+    const updateValue = []
+    if (title) (sql += ' title=?,'), updateValue.push(title)
+    if (text) (sql += ' text=?,'), updateValue.push(text)
+    if (slug) (sql += ' slug=?,'), updateValue.push(slug)
+    if (image) (sql += ' image=?,'), updateValue.push(image)
+    sql = sql.slice(0, -1)
+    sql += ' WHERE id=?'
+    updateValue.push(id)
+
+    if (req.auth.role !== 'superadmin') {
+      sql += ' AND author=?'
+      updateValue.push(req.auth.email)
+    }
+
+    const query = await sqlPromise(sql, updateValue)
+
+    if (query.affectedRows === 0) {
       res.status(404).send({ message: 'post not found' })
       return
     }
 
     if (tags) {
-      db.query('DELETE FROM post_tags WHERE post_id = ?', [id])
+      await sqlPromise('DELETE FROM post_tags WHERE post_id = ?', [id])
+
+      let sqlInsertTags = 'INSERT INTO tags (name) VALUES'
+      const sqlInsertTagsValues = []
+      let sqlInsertPostTags = 'INSERT INTO post_tags (post_id, tag) VALUES'
+      const sqlInsertpostTagsValues = []
       tags.split(',').map((tag) => {
-        db.query(
-          'INSERT INTO tags (name) VALUES (?)',
-          [tag],
-          (err, result) => {}
-        )
-        db.query('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)', [
-          id,
-          tag,
-        ])
+        sqlInsertTags += ' (?),'
+        sqlInsertTagsValues.push(tag)
+        sqlInsertPostTags += ' (?, ?),'
+        sqlInsertpostTagsValues.push(...[id, tag])
       })
+      sqlInsertTags = sqlInsertTags.slice(0, -1)
+      sqlInsertPostTags = sqlInsertPostTags.slice(0, -1)
+      // catch for ignore error duplicate tag name on table
+      await sqlPromise(sqlInsertTags, sqlInsertTagsValues).catch((err) => {})
+      await sqlPromise(sqlInsertPostTags, sqlInsertpostTagsValues)
     }
 
     res.send({
       message: 'post updated',
     })
-  })
-}
+  } catch (err) {
+    console.log(err)
 
-exports.delete = (req, res) => {
-  const { id } = req.params
-
-  let sql = 'DELETE FROM posts WHERE id = ?'
-  const values = [id]
-
-  if (req.auth.role !== 'superadmin') {
-    sql += ' AND author=?'
-    updateValue.push(req.auth.email)
-  }
-
-  db.query(sql, values, (err, result) => {
-    if (err) {
-      res.status(500).send({ message: err.message })
+    if (err.code === 'ER_DUP_ENTRY') {
+      res.status(400).send({ message: 'slug is already taken' })
       return
     }
 
-    if (result.affectedRows === 0) {
+    res.status(500).send({ message: err.message })
+  }
+}
+
+exports.delete = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    let sql = 'DELETE FROM posts WHERE id = ?'
+    const values = [id]
+
+    if (req.auth.role !== 'superadmin') {
+      sql += ' AND author=?'
+      values.push(req.auth.email)
+    }
+
+    const query = await sqlPromise(sql, values)
+
+    if (query.affectedRows === 0) {
       res.status(404).send({ message: 'post not found' })
       return
     }
 
-    db.query('DELETE FROM post_tags WHERE post_id = ?', [id])
+    await sqlPromise('DELETE FROM post_tags WHERE post_id = ?', [id])
 
     res.send({
       message: 'post deleted',
     })
-  })
+  } catch (err) {
+    console.log(err)
+
+    res.status(500).send({ message: err.message })
+  }
 }
