@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jan 06, 2024 at 01:38 AM
+-- Generation Time: Jan 09, 2024 at 10:51 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -93,13 +93,16 @@ INSERT INTO `users` (`email`, `password`, `name`, `role`, `created_at`, `updated
 --
 ALTER TABLE `posts`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `slug` (`slug`);
+  ADD UNIQUE KEY `slug` (`slug`),
+  ADD KEY `author` (`author`);
 
 --
 -- Indexes for table `post_tags`
 --
 ALTER TABLE `post_tags`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `post_id` (`post_id`),
+  ADD KEY `tag` (`tag`);
 
 --
 -- Indexes for table `tags`
@@ -128,6 +131,23 @@ ALTER TABLE `posts`
 --
 ALTER TABLE `post_tags`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `posts`
+--
+ALTER TABLE `posts`
+  ADD CONSTRAINT `posts_ibfk_1` FOREIGN KEY (`author`) REFERENCES `users` (`email`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `post_tags`
+--
+ALTER TABLE `post_tags`
+  ADD CONSTRAINT `post_tags_ibfk_1` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `post_tags_ibfk_2` FOREIGN KEY (`tag`) REFERENCES `tags` (`name`);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

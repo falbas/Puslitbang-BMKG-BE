@@ -1,5 +1,5 @@
-const db = require('../configs/db.config')
 const sqlPromise = require('../helpers/sqlPromise')
+const { storageFileDelete } = require('../helpers/storageFileDelete')
 
 const POSTS_ORDER_KEY = {
   title: 'posts.title',
@@ -36,20 +36,16 @@ exports.create = async (req, res) => {
     )
 
     if (tags) {
-      let sqlInsertTags = 'INSERT INTO tags (name) VALUES'
-      const sqlInsertTagsValues = []
       let sqlInsertPostTags = 'INSERT INTO post_tags (post_id, tag) VALUES'
       const sqlInsertpostTagsValues = []
-      tags.split(',').map((tag) => {
-        sqlInsertTags += ' (?),'
-        sqlInsertTagsValues.push(tag)
+      for (let tag of tags.split(',')) {
+        await sqlPromise('INSERT INTO tags (name) VALUES (?)', tag).catch(
+          () => {}
+        )
         sqlInsertPostTags += ' (?, ?),'
         sqlInsertpostTagsValues.push(...[query.insertId, tag])
-      })
-      sqlInsertTags = sqlInsertTags.slice(0, -1)
+      }
       sqlInsertPostTags = sqlInsertPostTags.slice(0, -1)
-      // catch for ignore error duplicate tag name on table
-      await sqlPromise(sqlInsertTags, sqlInsertTagsValues).catch((err) => {})
       await sqlPromise(sqlInsertPostTags, sqlInsertpostTagsValues)
     }
 
@@ -193,8 +189,11 @@ exports.update = async (req, res) => {
     const { id } = req.params
     let { title, text, slug, tags } = req.body
     let image = undefined
+    let getPost = undefined
+
     if (req.file) {
       image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
+      getPost = await sqlPromise('SELECT image FROM posts WHERE id = ?', [id])
     }
 
     let sql = 'UPDATE posts SET'
@@ -218,6 +217,8 @@ exports.update = async (req, res) => {
       res.status(404).send({ message: 'post not found' })
       return
     }
+
+    storageFileDelete(getPost[0].image)
 
     if (tags) {
       await sqlPromise('DELETE FROM post_tags WHERE post_id = ?', [id])
@@ -258,6 +259,10 @@ exports.delete = async (req, res) => {
   try {
     const { id } = req.params
 
+    const getPost = await sqlPromise('SELECT image FROM posts WHERE id = ?', [
+      id,
+    ])
+
     let sql = 'DELETE FROM posts WHERE id = ?'
     const values = [id]
 
@@ -272,6 +277,8 @@ exports.delete = async (req, res) => {
       res.status(404).send({ message: 'post not found' })
       return
     }
+
+    storageFileDelete(getPost[0].image)
 
     await sqlPromise('DELETE FROM post_tags WHERE post_id = ?', [id])
 

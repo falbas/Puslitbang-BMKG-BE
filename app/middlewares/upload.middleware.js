@@ -1,4 +1,5 @@
 const multer = require('multer')
+const { v4: uuidv4 } = require('uuid')
 
 const uploadFile = multer({
   storage: multer.diskStorage({
@@ -11,7 +12,7 @@ const uploadFile = multer({
         e.code = 'INVALID_IMAGE_FILE'
         cb(e, false)
       }
-      cb(null, Date.now() + '-' + file.originalname)
+      cb(null, uuidv4() + file.originalname.match(/\.(jpg|jpeg|png)$/)[0])
     },
   }),
   limits: {
