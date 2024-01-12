@@ -218,7 +218,9 @@ exports.update = async (req, res) => {
       return
     }
 
-    storageFileDelete(getPost[0].image)
+    if (req.file) {
+      storageFileDelete(getPost[0].image)
+    }
 
     if (tags) {
       await sqlPromise('DELETE FROM post_tags WHERE post_id = ?', [id])
