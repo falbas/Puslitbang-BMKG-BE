@@ -1,5 +1,6 @@
 const sqlPromise = require('../helpers/sqlPromise')
 const { storageFileDelete } = require('../helpers/storageFileDelete')
+const { imageUrlResolver } = require('../helpers/imageUrlResolver')
 
 const POSTS_ORDER_KEY = {
   title: 'posts.title',
@@ -24,7 +25,7 @@ exports.create = async (req, res) => {
 
     let image = undefined
     if (req.file) {
-      image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
+      image = req.file.filename
     }
     const author = req.auth.email
     const slug =
@@ -91,6 +92,8 @@ exports.readAll = async (req, res) => {
         return
       }
 
+      result[0].image = imageUrlResolver(result[0].image)
+
       res.send(result[0])
 
       return
@@ -148,6 +151,11 @@ exports.readAll = async (req, res) => {
     const postsCount = await sqlPromise(sqlCount, values)
     const postsRead = await sqlPromise(sql, values)
 
+    console.log(postsRead)
+    postsRead.map((post, key) => {
+      postsRead[key].image = imageUrlResolver(post.image)
+    })
+
     res.send({
       page: page,
       limit: limit,
@@ -176,6 +184,8 @@ exports.readById = async (req, res) => {
       return
     }
 
+    query[0].image = imageUrlResolver(query[0].image)
+
     res.send(query[0])
   } catch (err) {
     console.log(err)
@@ -192,7 +202,7 @@ exports.update = async (req, res) => {
     let getPost = undefined
 
     if (req.file) {
-      image = process.env.APP_URL + '/api/' + req.file.path.replace('\\', '/')
+      image = req.file.filename
       getPost = await sqlPromise('SELECT image FROM posts WHERE id = ?', [id])
     }
 
