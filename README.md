@@ -4,6 +4,10 @@
   - [(POST) Register](#post-register)
   - [(POST) Login](#post-login)
   - [(GET) Verify 🔐](#get-verify)
+  - [(PATCH) Update User 🔐](#patch-update)
+  - [(DELETE) Delete User 🔐](#delete-delete-user)
+  - [(GET) Get All Users 🔐](#get-read-all-users)
+  - [(GET) User Info 🔐](#get-user-info)
 - [Posts](#posts)
   - [(POST) Create Post 🔐](#post-create-post)
   - [(GET) Get All Posts](#get-get-all-posts)
@@ -130,6 +134,115 @@
 ```
 {
     "message": "user not authorized"
+}
+```
+
+## (PATCH) Update User
+
+```
+/users
+```
+
+### Body
+
+- JSON
+
+```
+{
+    "name": "Admin",
+    "password": "password123"
+}
+```
+
+### Response
+
+- 200 OK
+
+```
+{
+    "message": "user updated"
+}
+```
+
+## (DELETE) Delete User
+
+```
+/users/{email}
+```
+
+### Response
+
+- 200 OK
+
+```
+{
+    "message": "user deleted"
+}
+```
+
+- 401 Unauthorized
+
+```
+{
+    "message": "permission denied"
+}
+```
+
+## (GET) Get All Users
+
+```
+/users
+```
+
+### Response
+
+- 200 OK
+
+```
+{
+    "page": 1,
+    "limit": 10,
+    "total_pages": 1,
+    "total": 2,
+    "data": [
+        {
+            "email": "superadmin@tes.com",
+            "name": "Superadmin",
+            "role": "superadmin",
+            "created_at": "2023-11-22T10:14:39.000Z",
+            "updated_at": "2023-12-18T00:58:34.000Z"
+        }
+    ]
+}
+```
+
+- 401 Unauthorized
+
+```
+{
+    "message": "permission denied"
+}
+```
+
+## (GET) User Info
+
+```
+/users/info
+```
+
+### Response
+
+- 200 OK
+
+```
+{
+    "data": {
+        "email": "admin@tes.com",
+        "name": "Admin gan",
+        "role": "admin",
+        "created_at": "2024-01-12T01:20:55.000Z",
+        "updated_at": "2024-01-22T03:29:35.000Z"
+    }
 }
 ```
 

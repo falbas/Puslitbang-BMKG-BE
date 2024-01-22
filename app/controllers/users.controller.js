@@ -163,22 +163,24 @@ exports.update = async (req, res) => {
     const { name, password } = req.body
     const email = req.auth.email
 
-    let sql = 'UPDATE users SET'
+    if (name || password) {
+      let sql = 'UPDATE users SET'
 
-    const updateValue = []
-    if (name) (sql += ' name=?,'), updateValue.push(name)
-    if (password) {
-      const encpass = createHmac('sha256', process.env.KEY_PASS)
-        .update(password)
-        .digest('hex')
-      sql += ' password=?,'
-      updateValue.push(encpass)
+      const updateValue = []
+      if (name) (sql += ' name=?,'), updateValue.push(name)
+      if (password) {
+        const encpass = createHmac('sha256', process.env.KEY_PASS)
+          .update(password)
+          .digest('hex')
+        sql += ' password=?,'
+        updateValue.push(encpass)
+      }
+      sql = sql.slice(0, -1)
+      sql += ' WHERE email=?'
+      updateValue.push(email)
+
+      await sqlPromise(sql, updateValue)
     }
-    sql = sql.slice(0, -1)
-    sql += ' WHERE email=?'
-    updateValue.push(email)
-
-    await sqlPromise(sql, updateValue)
 
     res.send({
       message: 'user updated',
